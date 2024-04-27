@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# todo:
+# check script on steamdeck
+
+# Distro:SteamOS Holo
+# Kernel:5.13.0-valve36-1-neptune
+# RAM:15 GB
+# GPU Driver:4.6 (Compatibility Profile) Mesa 22.2.0 (git-17e5312102)
+# GPU:AMD Custom GPU 0405 (vangogh, LLVM 14.0.6, DRM 3.45, 5.13.0-valve36-1-neptune)
+# CPU:AMD Custom APU 0405
+
+round () {
+    read -r input
+    printf "%.f" "$input"
+}
+
+extractIn () {
+    delimiter="$1"
+    index="$2"
+    read -r input
+    echo "$input" | cut -d "$delimiter" -f "$index" 
+}
+
+trim () {
+    read -r input
+    echo "$input" | xargs
+}
+
+remove () {
+    read -r input
+    search=$1
+    replace=""
+    echo "${input/$search/$replace}"
+}
+
+removeInParenthesis () {
+    read -r input
+    echo "${input//[(][^)]*[)]/}"
+}
+
+removeFirstLine () {
+    read -r input
+    echo "$input" | head -1
+}
+
+hasCommand() {
+    if command -v "$1" &> /dev/null; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
+hasWine() {
+    hasCommand "wine"
+}
+
+# https://stackoverflow.com/questions/59838/how-do-i-check-if-a-directory-exists-or-not-in-a-bash-shell-script
+canReach() {
+    directory=$1
+    if [ -d "$directory" ]; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
+# hasWine
+# exit 1
+
+distro="$(cat /etc/*-release | grep PRETTY_NAME | extractIn '"' 2)"
+kernel=$(uname -r)
+ram=$(free -h --giga | awk '/Mem/{print $2}' | remove 'G' | round)
+driver=$(lspci -nnk | grep -E -i --color 'vga|3d|2d' -A3 | grep 'in use' | extractIn ":" 2 | trim)
+gpu=$(lspci | grep VGA | extractIn ":" 3 | remove ' Corporation' | extractIn "-" 1)
+cpu=$(grep "model name" /proc/cpuinfo | removeFirstLine | extractIn ":" 2 | removeInParenthesis | remove " CPU" | remove ' Processor' | trim)
+
+echo "Distro: $distro
+Kernel: $kernel
+RAM: $ram GB
+GPU Driver: $driver
+GPU: $gpu
+CPU: $cpu"
+
+# wine version?
+# Wine: $(wine --version)
+
+# proton version
+# ~/.local/share/Steam/steamapps/common/Proton\ 8.0/proton 
+
+# various note
+# hostnamectl
+# hwinfo --gfxcard
+
+# if ! command -v <the_command> &> /dev/null
+# then
+#     echo "<the_command> could not be found"
+#     exit 1
+# fi
+
+# gnudate() {
+#     if hash gdate 2>/dev/null; then
+#         gdate "$@"
+#     else
+#         date "$@"
+#     fi
+# }
+
+# https://stackoverflow.com/questions/592620/how-can-i-check-if-a-program-exists-from-a-bash-script
